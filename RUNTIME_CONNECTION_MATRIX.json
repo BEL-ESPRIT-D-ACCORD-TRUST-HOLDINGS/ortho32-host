@@ -1,0 +1,98 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-01-04T00:00:00Z",
+  "pipeName": "ortho-ai",
+  "note": "mocked=true means NOT integrated (stub/fixture). mocked=false means real live integration.",
+  "components": [
+    {
+      "id": "ORTHOAI_GATEWAY_PIPE_SERVER",
+      "name": "ORTHOAI TypeScript Gateway IPC Server",
+      "transport": "named pipe ortho-ai (\\\\.\\pipe\\ortho-ai / /tmp/ortho-ai.sock)",
+      "implementation": "ortho32-ai-gateway/src/ipc/pipe-server.ts",
+      "status": "RUNNING",
+      "mocked": false,
+      "details": "Real Node net server, MessageEnvelope JSON lines, streams InferenceEvent, handles disconnect without crash, correlationId propagated"
+    },
+    {
+      "id": "ORTHOAI_INFERENCE_HANDLER",
+      "name": "Inference Handler (Anthropic/OpenAI)",
+      "transport": "HTTPS to provider + pipe back",
+      "implementation": "ortho32-ai-gateway/src/ipc/inference-handler.ts",
+      "status": "RUNNING",
+      "mocked": false,
+      "details": "Calls real Anthropic/OpenAI streaming APIs via fetch SSE. If no key yields failed event. No fake streaming."
+    },
+    {
+      "id": "ORTHOAI_MODELS_HANDLER",
+      "name": "Models Catalog Handler",
+      "transport": "HTTPS to provider + pipe back",
+      "implementation": "ortho32-ai-gateway/src/ipc/models-handler.ts",
+      "status": "RUNNING",
+      "mocked": false,
+      "details": "Fetches live from https://api.openai.com/v1/models and https://api.anthropic.com/v1/models. No fake static list. Returns failed if no keys."
+    },
+    {
+      "id": "ORTHOBRIDGE_SIM",
+      "name": "ORTHOBridge C Simulator",
+      "transport": "C ABI in-process",
+      "implementation": "ortho32-bridge/sim/ortho_sim.c / ortho_sim.h",
+      "status": "RUNNING",
+      "mocked": false,
+      "details": "Real 4x4 matmul (manual or cblas_sgemm), cycles=768 architectural constant, SHA-256 of actual result bytes as traceRoot/resultHash"
+    },
+    {
+      "id": "ORTHOHOST",
+      "name": "ORTHOHost C#/.NET IPC Router + EventBus + Session",
+      "transport": "named pipe ortho-ai client to gateway",
+      "implementation": "C# ORTHOHost (external)",
+      "status": "STUB",
+      "mocked": true,
+      "details": "Not verified in this slice. Gateway implements server side matching ORTHOHost InferenceService spec, ready for host to connect as client."
+    },
+    {
+      "id": "ORTHOROUTER",
+      "name": "ORTHORouter canonical routes/intents",
+      "transport": "in-process C#",
+      "implementation": "C# ORTHORouter (external)",
+      "status": "STUB",
+      "mocked": true,
+      "details": "Not implemented here. Pipe envelope includes source/target/action routing fields for future router."
+    },
+    {
+      "id": "ORTHOEVENTBUS",
+      "name": "ORTHOEventBus streaming + correlation",
+      "transport": "named pipe streaming",
+      "implementation": "C# EventBus (external) + TS pipe streaming",
+      "status": "PARTIAL",
+      "mocked": true,
+      "details": "TS side real correlationId streaming implemented. C# EventBus integration not verified; marked mocked until E2E with host."
+    },
+    {
+      "id": "SWIFT_DESKTOP",
+      "name": "Swift Desktop Client",
+      "transport": "named pipe ortho-ai",
+      "implementation": "Swift (external)",
+      "status": "MISSING",
+      "mocked": true,
+      "details": "No Swift client in repo. Pipe contract documented for Swift to connect."
+    },
+    {
+      "id": "INTEGRATION_TEST_PIPE",
+      "name": "Pipe Roundtrip Integration Test",
+      "transport": "in-process net client to pipe server",
+      "implementation": "tests/integration/test_pipe_roundtrip.ts",
+      "status": "RUNNING",
+      "mocked": false,
+      "details": "Starts server in-process, requires real provider key, asserts token events, correlationId matches, final type==completed. Fails if key missing."
+    },
+    {
+      "id": "INTEGRATION_TEST_SIM",
+      "name": "Bridge Sim Test",
+      "transport": "C ABI",
+      "implementation": "ortho32-bridge/sim/test_sim.c",
+      "status": "RUNNING",
+      "mocked": false,
+      "details": "Submits TENSOR 4x4 identity, asserts cycles==768 and 64-char hex hash, verifies SHA-256 over bytes"
+    }
+  ]
+}
