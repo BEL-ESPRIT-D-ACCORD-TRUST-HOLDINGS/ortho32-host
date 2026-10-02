@@ -1,35 +1,35 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-01-04T00:00:00Z",
+  "generatedAt": "2026-10-02T00:00:00Z",
   "pipeName": "ortho-ai",
   "note": "mocked=true means NOT integrated (stub/fixture). mocked=false means real live integration.",
   "components": [
     {
       "id": "ORTHOAI_GATEWAY_PIPE_SERVER",
-      "name": "ORTHOAI TypeScript Gateway IPC Server",
-      "transport": "named pipe ortho-ai (\\\\.\\pipe\\ortho-ai / /tmp/ortho-ai.sock)",
-      "implementation": "ortho32-ai-gateway/src/ipc/pipe-server.ts",
+      "name": "ORTHOAI M Gateway IPC Server (socat listener)",
+      "transport": "named pipe ortho-ai (\\\\.\\pipe\\ortho-ai on Windows / Unix socket /tmp/CoreFxPipe_ortho-ai on Linux)",
+      "implementation": "ortho32-ai-gateway/bin/ortho-ai-serve.sh + bin/ortho-ai-conn.sh",
       "status": "RUNNING",
       "mocked": false,
-      "details": "Real Node net server, MessageEnvelope JSON lines, streams InferenceEvent, handles disconnect without crash, correlationId propagated"
+      "details": "socat listener forks one process per connection; reads one MessageEnvelope line, streams InferenceEvent lines ending Done=true. Verified by ortho32-ai-gateway tests/e2e.sh (15 checks) against a mock provider; NOT yet verified against the real C# host. Windows named pipes are not served (Linux/macOS Unix socket only)."
     },
     {
       "id": "ORTHOAI_INFERENCE_HANDLER",
-      "name": "Inference Handler (Anthropic/OpenAI)",
-      "transport": "HTTPS to provider + pipe back",
-      "implementation": "ortho32-ai-gateway/src/ipc/inference-handler.ts",
+      "name": "Inference Handler (Anthropic/OpenAI) in M",
+      "transport": "HTTPS to provider via curl + pipe back",
+      "implementation": "ortho32-ai-gateway/m/ORTHOAI.m (SERVE, REQ) + m/ORTPROV.m + m/ORTIPC.m",
       "status": "RUNNING",
       "mocked": false,
-      "details": "Calls real Anthropic/OpenAI streaming APIs via fetch SSE. If no key yields failed event. No fake streaming."
+      "details": "Calls the real provider endpoints with curl (body and credential via 0600 files, no shell interpolation of request data). Non-streaming: one Chunk with the reply text, then Done. Missing key yields an Error event. Verified against a local mock of the provider APIs only; real OpenAI/Anthropic calls not exercised."
     },
     {
       "id": "ORTHOAI_MODELS_HANDLER",
       "name": "Models Catalog Handler",
-      "transport": "HTTPS to provider + pipe back",
-      "implementation": "ortho32-ai-gateway/src/ipc/models-handler.ts",
-      "status": "RUNNING",
-      "mocked": false,
-      "details": "Fetches live from https://api.openai.com/v1/models and https://api.anthropic.com/v1/models. No fake static list. Returns failed if no keys."
+      "transport": "n/a",
+      "implementation": "ortho32-ai-gateway/m/ORTROUTE.m (static catalog in ^ORTHO(\"MODEL\"))",
+      "status": "MISSING",
+      "mocked": true,
+      "details": "The M gateway has no live GET /v1/models handler; the catalog is a static table initialised by INIT^ORTROUTE. The previous TypeScript handler no longer exists."
     },
     {
       "id": "ORTHOBRIDGE_SIM",
@@ -78,12 +78,12 @@
     },
     {
       "id": "INTEGRATION_TEST_PIPE",
-      "name": "Pipe Roundtrip Integration Test",
+      "name": "Gateway socket round-trip test",
       "transport": "in-process net client to pipe server",
-      "implementation": "tests/integration/test_pipe_roundtrip.ts",
+      "implementation": "ortho32-ai-gateway/tests/e2e.sh",
       "status": "RUNNING",
       "mocked": false,
-      "details": "Starts server in-process, requires real provider key, asserts token events, correlationId matches, final type==completed. Fails if key missing."
+      "details": "socat -> bridge -> YottaDB -> curl -> mock provider; run with `npm run test:e2e` in ortho32-ai-gateway (needs YottaDB, socat, jq, curl, node). The previous tests/integration/test_pipe_roundtrip.ts no longer exists."
     },
     {
       "id": "INTEGRATION_TEST_SIM",
